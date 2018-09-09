@@ -56,8 +56,8 @@ class PanUNet(nn.Module):
                 deconv_bn_relu(1536, 512, drop_out=True),
                 deconv_bn_relu(1536, 512, drop_out=True),
                 deconv_bn_relu(1536, 512),
-                deconv_bn_relu(1536, 256),
-                deconv_bn_relu(768, 128),
+                deconv_bn_relu(1280, 256),
+                deconv_bn_relu(640, 128),
                 deconv_bn_relu(256, 64),
                 nn.Conv2d(64, out_channels, 3, 1, 1)
                 ]
@@ -66,19 +66,22 @@ class PanUNet(nn.Module):
         rgb_skips = []
         panchro_skips = []
         h1 = self.rgb_conv[0](rgb)
-        for conv in self.rgb_conv[1:]:
+        for conv in self.rgb_conv[1:-1]:
             h1 = conv(h1)
             rgb_skips.append(h1)
+        h1 = self.rgb_conv[-1](h1)
+
         h2 = self.panchro_conv[0](panchro)
-        for conv in self.panchro_conv[1:]:
+        for conv in self.panchro_conv[1:-1]:
             h2 = conv(h2)
             panchro_skips.append(h2)
+        h2 = self.panchro_conv[-1](h2)
 
         h = self.deconv[0](torch.cat((h1, h2), dim=1))
         for i, deconv in enumerate(self.deconv[1: -2]):
-            h = torch.cat((h, rgb_skips[i], panchro_skips[i]), dim=1)
+            h = torch.cat((h, rgb_skips[-(i+1)], panchro_skips[-(i+1)]), dim=1)
             h = deconv(h)
-        h = self.deconvs[-2](toch.cat((h, panchro_skips[-1]), dim=1))
+        h = self.deconv[-2](torch.cat((h, panchro_skips[0]), dim=1))
         h = self.deconv[-1](h)
 
         return h
