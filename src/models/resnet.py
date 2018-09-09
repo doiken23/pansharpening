@@ -153,13 +153,20 @@ class BottleneckNoBatchNorm(nn.Module):
 
 class ResNet(nn.Module):
 
-    def __init__(self, in_channels, out_channels, block, layers):
+    def __init__(self, in_channels, out_channels, block, layers, batch_norm=True):
         self.inplanes = 64
         super(ResNet, self).__init__()
-        self.conv1 = nn.Conv2d(in_channels, 64, kernel_size=7, padding=3,
-                               bias=False)
-        self.bn1 = nn.BatchNorm2d(64)
-        self.relu = nn.ReLU(inplace=True)
+        if batch_norm:
+            self.layer0 = nn.Sequential(
+                    nn.Conv2d(in_channels, 64, kernel_size=7, padding=3, bias=False),
+                    nn.BatchNorm2d(64),
+                    nn.ReLU()
+                    )
+        else:
+            self.layer0 = nn.Sequential(
+                    nn.Conv2d(in_channels, 64, kernel_size=7, padding=3, bias=False),
+                    nn.ReLU()
+                    )
         self.layer1 = self._make_layer(block, 64, layers[0])
         self.layer2 = self._make_layer(block, 128, layers[1])
         self.layer3 = self._make_layer(block, 256, layers[2])
@@ -192,16 +199,13 @@ class ResNet(nn.Module):
 
     def forward(self, x1, x2):
         x = torch.cat((x1, x2), dim=1)
-        h = self.conv1(x)
-        h = self.bn1(h)
-        h = self.relu(h)
-
+        h = self.layer0(x)
         h = self.layer1(h)
         h = self.layer2(h)
         h = self.layer3(h)
         h = self.layer4(h)
         h = self.layer5(h)
-        h = h + x1
+        h += x1
 
         return h
 
@@ -213,9 +217,9 @@ def resnet18(in_channels, out_channels, batch_norm=True, **kwargs):
         pretrained (bool): If True, returns a model pre-trained on ImageNet
     """
     if batch_norm:
-        model = ResNet(in_channels, out_channels, BasicBlock, [2, 2, 2, 2], **kwargs)
+        model = ResNet(in_channels, out_channels, BasicBlock, [2, 2, 2, 2], batch_norm=batch_norm, **kwargs)
     else:
-        model = ResNet(in_channels, out_channels, BasicBlockNoBatchNorm, [2, 2, 2, 2], **kwargs)
+        model = ResNet(in_channels, out_channels, BasicBlockNoBatchNorm, [2, 2, 2, 2], batch_norm=batch_norm, **kwargs)
     return model
 
 
