@@ -41,6 +41,8 @@ def crop(rgb, b8, args, img_name):
     out_path = Path(args.data_dir).joinpath('out')
     out_path.mkdir(exist_ok=True)
 
+    if b8.shape != rgb.shape[1:]:
+        print('Size of RGB abd B8 is different!!!')
     H, W = b8.shape
     Y, X = int(H / args.size), int(W / args.size)
 
@@ -62,14 +64,15 @@ def crop(rgb, b8, args, img_name):
                         'b8': b8_}
                 joblib.dump(data, out_path.joinpath(img_name + '_{}_{}.pkl'.format(y, x)))
 
-                maxs.append(np.concatenate(np.max(rgb_, axis=(1,2)), np.max(b8_)))
-                mins.append(np.concatenate(np.min(rgb_, axis=(1,2)), np.min(b8_)))
-                means.append(np.concatenate(np.mean(rgb_, axis=(1,2)), np.mean(b8_)))
-                stds.append(np.concatenate(np.std(rgb_, axis=(1,2)), np.std(b8_)))
+                img = np.concatenate((rgb_, b8_[np.newaxis, ...]), axis=0)
+                maxs.append(np.max(img, axis=(1,2)))
+                mins.append(np.min(img, axis=(1,2)))
+                means.append(np.mean(img, axis=(1,2)))
+                stds.append(np.std(img, axis=(1,2)))
     print('{} / {} images are saved.'.format(n, (x+1)*(y+1)))
     
-    max = np.mean(maxs, axis=0)
-    min = np.mean(mins, axis=0)
+    max = np.max(maxs, axis=0)
+    min = np.min(mins, axis=0)
     mean = np.mean(means, axis=0)
     std = np.mean(stds, axis=0)
 
@@ -106,8 +109,8 @@ def main(args):
         stds.append(std)
 
     # save statstics
-    max = np.mean(maxs, axis=0)
-    min = np.mean(mins, axis=0)
+    max = np.max(maxs, axis=0)
+    min = np.min(mins, axis=0)
     mean = np.mean(means, axis=0)
     std = np.mean(stds, axis=0)
 
