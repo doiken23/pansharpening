@@ -4,8 +4,10 @@ from pathlib import Path
 
 import numpy as np
 import cv2
+import tifffile
 import joblib
 from tqdm import tqdm
+from pprint import pprint
 
 def get_arguments():
     parser = argparse.ArgumentParser()
@@ -24,7 +26,7 @@ def make_rgb(args, img_name, img_dir):
     rgb = np.stack(rgb, axis=2)
 
     # updample rgb
-    rgb = rgb.repeat(2, axis=0).repeat(2, axis=1)
+    rgb = rgb.repeat(4, axis=0).repeat(4, axis=1)
 
     # crop rgb
     rgb = rgb[1: -1, 1: -1]
@@ -42,15 +44,36 @@ def crop(rgb, b8, args, img_name):
     H, W = b8.shape
     Y, X = int(H / args.size), int(W / args.size)
 
+    # initialize statistics
+    maxs = []
+    mins = []
+    means = []
+    stds = []
+
+    n = 0
     for y in tqdm(range(Y)):
         for x in range(X):
             rgb_ = rgb[:, y*args.size: (y+1)*args.size, x*args.size: (x+1)*args.size]
             b8_ = b8[y*args.size: (y+1)*args.size, x*args.size: (x+1)*args.size]
 
             if not (np.zeros((3,1,1), dtype=np.int16) == rgb_).any():
+                n += 1
                 data = {'rgb': rgb_,
                         'b8': b8_}
                 joblib.dump(data, out_path.joinpath(img_name + '_{}_{}.pkl'.format(y, x)))
+
+                maxs.append(np.concatenate(np.max(rgb_, axis=(1,2)), np.max(b8_)))
+                mins.append(np.concatenate(np.min(rgb_, axis=(1,2)), np.min(b8_)))
+                means.append(np.concatenate(np.mean(rgb_, axis=(1,2)), np.mean(b8_)))
+                stds.append(np.concatenate(np.std(rgb_, axis=(1,2)), np.std(b8_)))
+    print('{} / {} images are saved.'.format(n, (x+1)*(y+1)))
+    
+    max = np.mean(maxs, axis=0)
+    min = np.mean(mins, axis=0)
+    mean = np.mean(means, axis=0)
+    std = np.mean(stds, axis=0)
+
+    return max, min, mean, std
 
 def main(args):
     # get base name
@@ -61,6 +84,12 @@ def main(args):
         img_names.append(img_name.name.split('_')[0])
     img_names = set(img_names)
 
+    # initialize statistics
+    maxs = []
+    mins = []
+    means = []
+    stds = []
+
     for img_name in img_names:
         print('===== process {} ====='.format(img_name))
         # make rgb image
@@ -70,7 +99,27 @@ def main(args):
         b8 = cv2.imread(str(img_dir.joinpath(img_name + '_B8.TIF')), -1)
 
         # crop images
-        crop(rgb, b8, args, img_name)
+        max, min, mean, std = crop(rgb, b8, args, img_name)
+        maxs.append(max)
+        mins.append(min)
+        means.append(mean)
+        stds.append(std)
+
+    # save statstics
+    max = np.mean(maxs, axis=0)
+    min = np.mean(mins, axis=0)
+    mean = np.mean(means, axis=0)
+    std = np.mean(stds, axis=0)
+
+    Path(args.data_dir).joinpath('statistic').mkdir(exist_ok=True)
+    statistic_path = Path(args.data_dir).joinpath('statistic', 'statistic.pkl')
+    statistic = {'max': max,
+            'min': min,
+            'mean': mean,
+            'std': std}
+    print('===== statistics =====')
+    pprint(statistic)
+    joblib.dump(statistic, statistic_path)
 
 if __name__ == '__main__':
     start_time = time.time()
