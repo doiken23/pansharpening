@@ -9,11 +9,11 @@ import joblib
 from tqdm import tqdm
 
 def crop_img(data_dir, base_name, out, size=224):
-    img_path = Path(data_dir).joinpath('rgb').joinpath(base_name + '_RGB.tif')
+    img_path = Path(data_dir).out('rgb').joinpath(base_name + '_RGB.tif')
     img = tifffile.imread(str(img_path))
-    mask_path = Path(data_dir).joinpath('mask').joinpath(base_name + '_MASK.png')
+    mask_path = Path(data_dir).out('mask').joinpath(base_name + '_MASK.png')
     mask = np.array(Image.open(mask_path))
-    b8_path = Path(data_dir).joinpath('B8').joinpath(base_name + '_B8.TIF')
+    b8_path = Path(data_dir).out('B8').joinpath(base_name + '_B8.TIF')
     b8 = tifffile.imread(str(b8_path))
     b8 = b8[np.newaxis, ...]
 
@@ -31,7 +31,7 @@ def crop_img(data_dir, base_name, out, size=224):
                         'rgb': img_,
                         'b8': b8_
                         }
-                out_path = Path(out).joinpath(base_name + '_{}_{}.pkl'.format(y, x))
+                out_path = Path(out).out(base_name + '_{}_{}.pkl'.format(y, x))
                 joblib.dump(data, out_path)
 
 def main():
@@ -44,7 +44,7 @@ def main():
 
     # parse data_dir
     data_dir = Path(args.data_dir)
-    rgb_dir = data_dir.joinpath('rgb')
+    rgb_dir = data_dir.out('rgb')
     base_names = [rgb_img.stem.split('_')[0] for rgb_img in rgb_dir.iterdir()]
 
     # crop images
