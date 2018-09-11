@@ -16,4 +16,4 @@ R_img = tifffile.imread(args.base_name + '_B4.TIF')
 
 # merge and save images
 img = np.stack((B_img, G_img, R_img), axis=0)
-tifffile.imsave(str(Path(args.out).joinpath(args.base_name + '_RGB.tif')), img)
+tifffile.imsave(str(Path(args.out).out(args.base_name + '_RGB.tif')), img)
