@@ -4,6 +4,7 @@ from pathlib import Path
 
 import numpy as np
 import cv2
+import joblib
 from tqdm import tqdm
 
 def get_arguments():
@@ -47,9 +48,9 @@ def crop(rgb, b8, args, img_name):
             b8_ = b8[y*args.size: (y+1)*args.size, x*args.size: (x+1)*args.size]
 
             if not (np.zeros((3,1,1), dtype=np.int16) == rgb_).any():
-                np.save(out_path.joinpath(img_name + '_rgb_{}_{}.npy'.format(y, x)), rgb_)
-                np.save(out_path.joinpath(img_name + '_b8_{}_{}.npy'.format(y, x)), b8_)
-
+                data = {'rgb': rgb_,
+                        'b8': b8_}
+                joblib.dump(data, out_path.joinpath(img_name + '_{}_{}.pkl'.format(y, x)))
 
 def main(args):
     # get base name
@@ -61,7 +62,7 @@ def main(args):
     img_names = set(img_names)
 
     for img_name in img_names:
-        print('process {}'.format(img_name))
+        print('===== process {} ====='.format(img_name))
         # make rgb image
         rgb = make_rgb(args, img_name, img_dir)
 
