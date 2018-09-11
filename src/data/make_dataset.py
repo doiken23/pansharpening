@@ -58,7 +58,8 @@ def crop(rgb, b8, args, img_name):
             rgb_ = rgb[:, y*args.size: (y+1)*args.size, x*args.size: (x+1)*args.size]
             b8_ = b8[y*args.size: (y+1)*args.size, x*args.size: (x+1)*args.size]
 
-            if not (np.zeros((3,1,1), dtype=np.int16) == rgb_).any():
+            if not (np.zeros((3,1,1), dtype=np.int16) == rgb_).any() \
+                    and not (np.concatenate((rgb_, b8_[np.newaxis, ...])) > 15000).any():
                 n += 1
                 data = {'rgb': rgb_,
                         'b8': b8_}
