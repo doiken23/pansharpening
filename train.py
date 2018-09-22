@@ -17,6 +17,27 @@ from src.models import Criterion
 from src.utils import PansharpenDataset
 from torchcv.transforms import NPSegRandomFlip, NPSegRandomRotate
 
+def visualize(args, epoch, name, rgb, b8, pansharpen):
+    out_dir = Path(args.log).joinpath('visualization', str(epoch))
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    mpl.rcParams['axes.xmargin'] = 0
+    mpl.rcParams['axes.ymargin'] = 0
+
+    plt.subplot(131)
+    plt.imshow(rgb.numpy().transpose(1, 2, 0), interpolation='nearest')
+    plt.axis('off')
+
+    plt.subplot(132)
+    plt.imshow(b8.squeeze().numpy(), cmap='Greens', interpolation='nearest')
+    plt.axis('off')
+
+    plt.subplot(133)
+    plt.imshow(pansharpen.numpy().transpose(1, 2, 0), interpolation='nearest')
+    plt.axis('off')
+
+    plt.savefig(out_dir.joinpath(name), quality=100)
+
 # get arguments
 parser = argparse.ArgumentParser()
 parser.add_argument('model', type=str, choices=['unet', 'resnet'])
@@ -38,7 +59,7 @@ train_trans = transforms.Compose([
     NPSegRandomFlip(),
     NPSegRandomRotat(),
     transforms.Normalize(statistics['mean'], statistics['std'])
-    )
+    ])
 val_trans = trnsforms.Normalize(statistics['mean'], statistics['std'])
 train_dataset, val_dataset = make_pansharpen_dataset(Path(args.data).joinpath('out'), train_trasforms=train_trans, val_transforms=val_trans)
 train_loader = data_utils.DataLoader(
@@ -79,15 +100,19 @@ def train(epoch):
 
     return epoch_loss / len(train_loader)
 
-def test():
+def test(epoch):
     criterion.eval()
     epoch_loss = 0
     with torch.no_grad():
-        for data in val_loader:
+        for i, data in enumerate(val_loader):
             rgb, b8 = data[0].to(device), data[1].to(device)
             
             loss = criterion(rgb, b8)
             epoch_loss += loss.item()
+
+            outputs = net(rgb, b8)
+
+            visualize(args, epoch, '{}.tiff'.format(i), rgb.to('cpu'), b8.to('cpu'), outputs.to('cpu'))
 
     print("Test Avg. Loss: {:.4f}".format(epoch_loss / len(val_loader)))
 
@@ -100,7 +125,7 @@ loss_his = [[], []]
 for epoch in range(1, args.epochs+1):
     train_loss = train(epoch)
     loss_his[0].append(train_loss)
-    val_loss = test()
+    val_loss = test(epoch)
     loss_his[1].append(val_loss)
     if val_loss < min_loss:
         torch.save(model, Path(args.out).joinpath('min_loss_model.pth'))
