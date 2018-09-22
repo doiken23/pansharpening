@@ -13,6 +13,7 @@ def get_arguments():
     parser = argparse.ArgumentParser()
     parser.add_argument('data_dir', type=str)
     parser.add_argument('size', type=int)
+    parser.add_argument('--test', action='store_true', default=False)
     args = parser.parse_args()
     return args
 
@@ -38,7 +39,10 @@ def make_rgb(args, img_name, img_dir):
     return rgb
 
 def crop(rgb, b8, args, img_name):
-    out_path = Path(args.data_dir).joinpath('out')
+    if args.test:
+        out_path = Path(args.data_dir).joinpath('out', 'test')
+    else:
+        out_path = Path(args.data_dir).joinpath('out', 'train')
     out_path.mkdir(exist_ok=True)
 
     if b8.shape != rgb.shape[1:]:
@@ -82,7 +86,10 @@ def crop(rgb, b8, args, img_name):
 def main(args):
     # get base name
     root = Path(args.data_dir)
-    img_dir = root.joinpath('img')
+    if args.test:
+        img_dir = root.joinpath('img', 'test')
+    else:
+        img_dir = root.joinpath('img', 'train')
     img_names = []
     for img_name in img_dir.iterdir():
         img_names.append(img_name.name.split('_')[0])
@@ -115,15 +122,16 @@ def main(args):
     mean = np.mean(means, axis=0)
     std = np.mean(stds, axis=0)
 
-    Path(args.data_dir).joinpath('statistic').mkdir(exist_ok=True)
-    statistic_path = Path(args.data_dir).joinpath('statistic', 'statistic.pkl')
-    statistic = {'max': max,
-            'min': min,
-            'mean': mean,
-            'std': std}
-    print('===== statistics =====')
-    pprint(statistic)
-    joblib.dump(statistic, statistic_path)
+    if not args.test:
+        Path(args.data_dir).joinpath('statistic').mkdir(exist_ok=True)
+        statistic_path = Path(args.data_dir).joinpath('statistic', 'statistic.pkl')
+        statistic = {'max': max,
+                'min': min,
+                'mean': mean,
+                'std': std}
+        print('===== statistics =====')
+        pprint(statistic)
+        joblib.dump(statistic, statistic_path)
 
 if __name__ == '__main__':
     start_time = time.time()
