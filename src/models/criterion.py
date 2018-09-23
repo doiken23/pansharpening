@@ -18,7 +18,7 @@ class MSELoss2D(nn.Module):
     def forward(self, x, target):
         n = x.size(0)
         x = x.view(n, -1)
-        target = target(n, -1)
+        target = target.view(n, -1)
 
         return self.mse(x, target)
 
@@ -30,7 +30,7 @@ class Criterion(nn.Module):
 
         super(Criterion, self).__init__()
         self.model = model
-        self.downsamlle = nn.AvgPool2d(2, 2)
+        self.downsample = nn.AvgPool2d(2, 2)
         self.conv = nn.Conv2d(out_channels, 1, 1)
         self.mse = MSELoss2D(
                 size_average=size_average,
@@ -39,8 +39,8 @@ class Criterion(nn.Module):
 
     def forward(self, x1, x2):
         outputs = self.model(x1, x2)
-        spectral_loss = self.mse(self.downsamlle(outpus), x1)
-        spatial_loss = self.mse(self.conv(outpus), x2)
+        spectral_loss = self.mse(self.downsample(outputs), self.downsample(x1))
+        spatial_loss = self.mse(self.conv(outputs), x2)
         loss = spectral_loss + spatial_loss
 
         return loss
