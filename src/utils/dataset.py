@@ -8,7 +8,7 @@ class PansharpenDataset(data_utils.Dataset):
         self.data_paths = list(self.data.iterdir())
         self.transforms = transforms
 
-    def __call__(self, idx):
+    def __getitem__(self, idx):
         data_path = str(self.data_paths[idx])
         data = joblib.load(data_path)
         data = [data['rgb'].astype(np.float32), data['b8'].astype(np.float32)]
