@@ -2,12 +2,13 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-class MSELoss2d(nn.Module):
+class MSELoss2D(nn.Module):
     def __init__(self,
             size_average=False,
             reduce=True,
             reduction='elementwise_mean'
             ):
+        super(MSELoss2D, self).__init__()
 
         self.mse = nn.MSELoss(
                 size_average=size_average,
