@@ -2,6 +2,7 @@ import argparse
 import time
 from pathlib import Path
 
+import joblib
 import numpy as np
 import matplotlib as mpl
 mpl.use('Agg')
@@ -14,7 +15,7 @@ from torchvision import transforms
 
 from src.models import PanUNet, resnet18
 from src.models import Criterion
-from src.utils import PansharpenDataset
+from src.utils import PansharpenDataset, PansharpenNormalize
 from torchcv.transforms import NPSegRandomFlip, NPSegRandomRotate
 
 def visualize(args, epoch, name, rgb, b8, pansharpen):
@@ -45,9 +46,12 @@ parser.add_argument('data', type=str, help='root data dir')
 parser.add_argument('--log', type=str, default='out', help='output path')
 parser.add_argument('--lr', type=float, default=0.0001)
 parser.add_argument('--alpha', type=float, default=1.0, help='parameter of loss weight')
-parser.add_argument('--batchsize', type=int, default=8)
+parser.add_argument('--batchsize', type=int, default=4)
 parser.add_argument('--epochs', type=int, default=100)
 args = parser.parse_args()
+
+# make log dir
+Path(args.log).mkdir(parents=True, exist_ok=True)
 
 # set torch parameters
 device = torch.device('cuda:0')
@@ -57,18 +61,19 @@ torch.backends.cudnn.benchmark = True
 statistics = joblib.load(Path(args.data).joinpath('statistic', 'statistic.pkl'))
 train_trans = transforms.Compose([
     NPSegRandomFlip(),
-    NPSegRandomRotat(),
-    transforms.Normalize(statistics['mean'], statistics['std'])
+    NPSegRandomRotate(),
+    PansharpenNormalize(statistics['mean'], statistics['std'])
     ])
-val_trans = trnsforms.Normalize(statistics['mean'], statistics['std'])
-train_dataset, val_dataset = make_pansharpen_dataset(Path(args.data).joinpath('out'), train_trasforms=train_trans, val_transforms=val_trans)
+test_trans = transforms.Normalize(statistics['mean'], statistics['std'])
+train_dataset = PansharpenDataset(Path(args.data).joinpath('out', 'train'), transforms=train_trans)
+test_dataset = PansharpenDataset(Path(args.data).joinpath('out', 'test'), transforms=test_trans)
 train_loader = data_utils.DataLoader(
     dataset=train_dataset,
     batch_size=args.batchsize, shuffle=True,
     drop_last=True,
     num_workers=2)
-val_loader = data_utils.DataLoader(
-    dataset=val_dataset,
+test_loader = data_utils.DataLoader(
+    dataset=test_dataset,
     batch_size=args.batchsize,
     drop_last=True,
     num_workers=2)
@@ -81,13 +86,13 @@ elif args.model == 'unet':
 net.to(device)
 
 criterion = Criterion(net, 3, alpha=args.alpha).to(device)
-optimzer = optim.Adam(criterion.parameters(), lr=args.lr)
+optimizer = optim.Adam(criterion.parameters(), lr=args.lr)
 
 def train(epoch):
     criterion.train()
     epoch_loss = 0
     for data in train_loader:
-        rgb, b8 = data[0].to(device), data[1].to(device)
+        rgb, b8 = data[0].float().to(device), data[1].float().to(device)
 
         optimizer.zero_grad()
         loss = criterion(rgb, b8)
@@ -105,14 +110,14 @@ def test(epoch):
     epoch_loss = 0
     with torch.no_grad():
         for i, data in enumerate(val_loader):
-            rgb, b8 = data[0].to(device), data[1].to(device)
+            rgb, b8 = data[0].float().to(device), data[1].float().to(device)
             
             loss = criterion(rgb, b8)
             epoch_loss += loss.item()
 
             outputs = net(rgb, b8)
 
-            visualize(args, epoch, '{}.tiff'.format(i), rgb.to('cpu'), b8.to('cpu'), outputs.to('cpu'))
+            visualize(args, epoch, '{}.tiff'.format(i), rgb[0].to('cpu'), b8[0].to('cpu'), outputs[0].to('cpu'))
 
     print("Test Avg. Loss: {:.4f}".format(epoch_loss / len(val_loader)))
 
