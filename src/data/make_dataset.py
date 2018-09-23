@@ -1,5 +1,6 @@
 import time
 import argparse
+import re
 from pathlib import Path
 
 import numpy as np
@@ -92,7 +93,7 @@ def main(args):
         img_dir = root.joinpath('img', 'train')
     img_names = []
     for img_name in img_dir.iterdir():
-        img_names.append(img_name.name.split('_')[0])
+        img_names.append(re.sub(r'_B\d.TIF', '', img_name.name))
     img_names = set(img_names)
 
     # initialize statistics
